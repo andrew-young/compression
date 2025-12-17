@@ -38,7 +38,7 @@ class deflate2 ():
 				self.freq[symbol]=self.freq[symbol]+1
 				i=i+1
 		#print(self.lengths[0])
-		print(total)
+		#print(total)
 		#print(sum(self.lengths[0].values()))
 		#print(sum(self.freq))
 		#print(len(self.lengths[0]))
@@ -98,11 +98,11 @@ class deflate2 ():
 		return self.huff2
 				
 	def encode(self,bitstream,array,n):
-		print("encode")
+		#print("encode")
 		self.array=array
 		self.n=n
 		bitstream.write(n,32)
-		print(n)
+		#print(n)
 		if n==0:
 			return
 			
@@ -116,22 +116,22 @@ class deflate2 ():
 		nbit=(len(self.freq)).bit_length()
 		
 		self.huff=huffman(nbit,self.freq)
-		print(self.huff.codelength)
+		#print(self.huff.codelength)
 		#self.huff.root.print()
 		self.huff2=self.createhuff2()
-		print(self.huff2.codelength)
+		#print(self.huff2.codelength)
 		#print("huff2")
 		#self.huff2.root.print()
 		
 		bitstream.write(self.maxzero,32)
-		print(self.maxzero)
+		#print(self.maxzero)
 		a=bitstream.n
 		self.huff.writetree(bitstream)
 
 		
 		self.secondpass(bitstream)
 		b=bitstream.n
-		print("encode size: "+str(b-a))
+		#print("encode size: "+str(b-a))
 		
 	def secondpass(self,bitstream):
 
@@ -172,15 +172,15 @@ class deflate2 ():
 	
 		
 	def decode(self,bitstream):
-		print("decode")
+		#print("decode")
 		outlength=bitstream.read(32)
-		print(outlength)
+		#print(outlength)
 		if outlength==0:
 			return np.zeros((0)),outlength
 		self.maxzero=bitstream.read(32)
 	
 		a=((1<<self.nbit)+self.maxzero-1).bit_length()
-		print([a,self.maxzero,1,"a"])
+		#print([a,self.maxzero,1,"a"])
 		self.huff=huffman(a)
 		
 	#	print(outlength)

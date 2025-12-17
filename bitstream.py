@@ -6,7 +6,7 @@ class bitstream():
 		self.f=open(file_path, mode)
 		self.n=0
 
-	def write(self,bits,n=1):
+	def write(self,bits,n=1):#n = number of bits
 		#print([n, self.i, bits, self.byte])
 		bits=bits
 		#print("bits "+str(bits))
@@ -87,7 +87,7 @@ class bitstream():
 		#print("i "+str(self.i))
 		#print("byte "+str(self.byte))
 	
-	def read(self,n):
+	def read(self,n): #read n bits
 		#print([n, self.i, self.byte])
 		while self.i < n:
 			d=(n-self.i+7)//8
@@ -118,8 +118,8 @@ class bitstream():
 		return byte
 		
 	def close(self):
-		#write unwritten bits. may write some extra zeros at the end since you have to write a full byte.
-		print("close")
+		#write unwritten bits. padded with zeros to make a full byte.
+		#print("close")
 		if self.mode=='wb' and self.i>0:
 			byte=self.byte
 			#print(self.i)
@@ -130,9 +130,9 @@ class bitstream():
 			self.f.write(byte)
 			self.n=self.n+1
 		if self.mode=='rb':
-			print(self.n//8)
+			print("bytes written: "+str((self.n-1)//8+1))#bytes  read
 		else:
-			print(self.n)
+			print("bytes read: "+str(self.n))#bytes written
 		self.f.close()
 		
 	

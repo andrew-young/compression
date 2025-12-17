@@ -171,7 +171,7 @@ class huffman():
 		self.hufftree(self.root,0,0)
 		
 	def frombitstream(self,bitstream):
-		print("from bits")
+		#print("from bits")
 		self.readtree(bitstream)
 	
 	def fromtree(self,root):
@@ -252,11 +252,11 @@ class huffman():
 			self.hufftree(node.right,2*code+1,n+1,codelist)
 			
 	def writetree(self,bitstream):
-		print("write tree")
+		#print("write tree")
 		a1=bitstream.n
 		self.writetree1(bitstream,self.root)
 		a2=bitstream.n
-		print(a2-a1)
+		#print(a2-a1)
 		
 	def writetree1(self,bitstream,node,i=0):
 	
