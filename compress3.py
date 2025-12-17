@@ -48,24 +48,13 @@ class compress():
 
 		image=self.createpyramid2(image)
 		im=Image.fromarray(image.astype(np.uint8))
-		im.save("/home/andrew/Desktop/asadf/out/"+"asdfa2"+".png")
-		#image=self.createpyramid2(image)
 		image=image.astype(np.uint8)
 		
 		image=self.transpose(image)
 
 		image=image.transpose((1,0))
 		image=image.reshape((w*h*8))
-		#print(np.sum(image==0))
-		#print(np.sum(image[:w*h*2]==0))
-		#print(np.sum(image[:w*h*4]==0)-np.sum(image[:w*h*2]==0))
-		#print(np.sum(image[:w*h*6]==0)-np.sum(image[:w*h*4]==0))
-		#print(np.sum(image[:w*h*8]==0)-np.sum(image[:w*h*6]==0))
-		#print(w*h*8)
-	
-		#image,lengths=
-
-		#self.lzencode(image,lengths)
+		
 		self.huffman(image,lengths)
 		
 		#for i in range(n):
@@ -77,7 +66,7 @@ class compress():
 
 
 		self.bitstream.close()
-		return image,lengths,self.bits
+		return image,lengths
 
 	
 	def decompress(self,image,lengths,nbits):
@@ -509,15 +498,21 @@ class compress():
 								
 def main():
 	#print("Asf")
-	im = Image.open("/home/andrew/Desktop/asadf/text256.png")
+	
+	image_to_compress = "/home/andrew/Desktop/asadf/text256.png"
+	
+	im = Image.open(image_to_compress)
 	im =im.convert("RGB")
 	image1=np.asarray(im).astype(np.uint8)
 	
-	a=compress(image1,"/home/andrew/Desktop/asadf/out/asdf.awy")
+	a=compress(image1,"/home/andrew/Desktop/asadf/out/asdf.awy") #to compress
 
-	b=compress(None,"/home/andrew/Desktop/asadf/out/asdf.awy")
-	image,lengths,nbits=a.compress()
+	b=compress(None,"/home/andrew/Desktop/asadf/out/asdf.awy") # to decompress
+	
+	image,lengths=a.compress()
 	image2=b.decompress(None,None,nbits)
+	
+	
 	#print(data)
 	im=Image.fromarray(image2)
 	im.save("/home/andrew/Desktop/asadf/out/asdf.png")
