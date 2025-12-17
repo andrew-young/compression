@@ -1,11 +1,11 @@
 from PIL import Image
 import numpy as np
 from bitstream import bitstream
-from huff0 import huff0
+#from huff0 import huff0
 from huffman import huffman
-from lzs import lzs
+#from lzs import lzs
 #from lz77 import lz77
-from lz0 import lz0
+#from lz0 import lz0
 import math
 from deflate2 import deflate2 as deflate
 
