@@ -69,7 +69,7 @@ class compress():
 		return image,lengths
 
 	
-	def decompress(self,image,lengths,nbits):
+	def decompress(self,image,lengths):
 		#print("decompress")
 		self.bitstream=bitstream(self.filename,'rb')
 		w=self.bitstream.read(32)
@@ -78,7 +78,7 @@ class compress():
 		self.w=w
 		self.h=h
 
-		self.bits=nbits
+	
 
 		
 		image,lengths=self.dehuffman()
@@ -88,7 +88,6 @@ class compress():
 		image=image.transpose((1,0))
 		image=self.detranspose(image)
 		image=image.reshape((h,w,3))
-		#image=self.decompress2(image)
 		image=self.decompress2(image)
 			
 		self.file.close()
@@ -226,7 +225,8 @@ class compress():
 	
 		return c
 	
-								
+	#first prefiltering step
+	#predicts value of next pixel and stores the difference in output image							
 	def createpyramid2(self,image):
 		
 		w=self.w
@@ -268,6 +268,8 @@ class compress():
 		
 
 
+	#first prefiltering step
+	#predicts value of next pixel and adds the value of the difference
 	def decompress2(self,image):
 		w=self.w
 		h=self.h
@@ -321,7 +323,11 @@ class compress():
 		#print(w2)
 		return w2
 
-	def	transposebits2(self,array,nbit): #ruins data in origional "array"
+
+	#nbit= number of bits each symbol is stored as.
+	#nbit 2 =  number of bits each symbol is stored as in output array2
+	#ruins data in origional "array"
+	def	transposebits2(self,array,nbit): 
 		nbit2=array.shape[1]
 		length=array.shape[0]
 		dtype=np.uint8
@@ -343,7 +349,7 @@ class compress():
 
 				
 						
-	def t1a(self,v2d):
+	def t1a(self,v2d): #turn small negative numbers(large numbers) into small positive numbers while keeping small positive numbers small
 		c=(v2d>=128)
 		c1=255-v2d
 		c1=c1*2+1
@@ -351,7 +357,7 @@ class compress():
 		v2d=(c*c1)+(1-c)*c2
 		return v2d		
 		
-	def t1b(self,v2d):
+	def t1b(self,v2d): #reverse of t1a
 		c=v2d%2
 		c1=(v2d-1)//2
 		c1=255-c1
@@ -359,7 +365,7 @@ class compress():
 		v2d=(c*c1)+(1-c)*c2
 		return v2d
 		
-	def transpose(self,image):
+	def transpose(self,image): #turn 3 8 bit numbers into 8 3 bit numbers
 		#print("transpose")
 		w=self.w
 		h=self.h
@@ -372,7 +378,7 @@ class compress():
 
 		return image2
 						
-	def detranspose(self,image):
+	def detranspose(self,image):  #turn 8 3 bit numbers into 3 8 bit numbers
 		#print("detranspose")
 		w=self.w
 		h=self.h
@@ -422,7 +428,7 @@ class compress():
 		w=self.w
 		h=self.h
 		#print(length)
-		n=2
+		n=2 # split 8 significant bits into n groups
 		
 	
 		bits2=6
@@ -434,30 +440,6 @@ class compress():
 			lengths[i]=w*h*8//n
 			arrays[i],lengths[i]=self.t3_9( arrays[i],lengths[i],3,bits2)
 
-		
-		a=0
-		for i in range(n):
-		#	print(np.sum(arrays[i]==0))
-		#	print(np.sum(arrays[i][:w*h*1]==0))
-	#		print(np.sum(arrays[i][:w*h*2]==0)-np.sum(arrays[i][:w*h*1]==0))
-			a=a+np.sum(arrays[i]==0)/(lengths[i])
-			#print(np.sum(arrays[i]==0)/(lengths[i]))
-		#print(a/4)
-		#image,lengths=
-		#print(arrays2.tolist())
-		
-		freq=[None]*n
-		for i in range(n):
-			freq[i]=[0]*size1
-			
-	
-		
-		for i in range(n):
-			for j in range(lengths[i]):
-				v=arrays[i][j]
-				#print([v,i])
-				freq[i][v]=freq[i][v]+1
-			#print(freq[i])
 		huf=[None]*n
 
 		for i in range(n):#n
@@ -510,7 +492,7 @@ def main():
 	b=compress(None,"/home/andrew/Desktop/asadf/out/asdf.awy") # to decompress
 	
 	image,lengths=a.compress()
-	image2=b.decompress(None,None,nbits)
+	image2=b.decompress(None,None)
 	
 	
 	#print(data)
