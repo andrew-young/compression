@@ -42,7 +42,6 @@ class compress():
 		self.bitstream.write(w,32)
 		self.bitstream.write(h,32)
 
-
 				
 		lengths=None
 
@@ -80,15 +79,16 @@ class compress():
 
 	
 
-		
+		choice=[0]*self.h
+		for j in range(1,h):
+			choice[j]=self.bitstream.read(2)
+			
 		image,lengths=self.dehuffman()
-		#image=self.lzdecode(image,lengths)
-
 		image=image.reshape((8,w*h))
 		image=image.transpose((1,0))
 		image=self.detranspose(image)
 		image=image.reshape((h,w,3))
-		image=self.decompress2(image)
+		image=self.decompress2(image,choice)
 			
 		self.file.close()
 		
@@ -132,98 +132,51 @@ class compress():
 		ind=np.argmin(pa,axis=1)
 		c=np.asarray([ a[0,ind[0]],a[1,ind[1]],a[2,ind[2]] ])
 		return c
-			
-	def paeth2b(self,A,B,C,D,E):
+
+	def paeth2b(self,A,B,C,D):
 		p=(A.astype(np.int16)+B-C).reshape((3,1))
-		a=np.stack([A,B,C,D,E],axis=1)
+		a=np.stack([A,B,C],axis=1)
 		#print(a)
 		pa=abs(a.astype(np.int16)-p)
-		
 		ind=np.argmin(pa,axis=1)
 		c=np.asarray([ a[0,ind[0]],a[1,ind[1]],a[2,ind[2]] ])
-			
-		#print(a)
-		#print(p)
+		return c
+
+	def paeth2c(self,A,B,C,D):
+		p=(A.astype(np.int16)+B-C).reshape((3,1))
+		c=np.maximum(0,np.minimum(255,p)).astype(np.uint8).reshape((3))
 		return c
 				
+	def paeth2d(self,A,B,C,D):
+		c=((A.astype(np.int16)+B)//2).reshape((3))
+		#c=np.maximum(0,np.minimum(255,p)).astype(np.uint8).reshape((3))
+		return c
+		
+	def paeth2e(self,A,B,C,D):
+		p=((A.astype(np.int16)+B)//2).reshape((3,1))
+		a=np.stack([A,B,C,D],axis=1)
+		pa=abs(a.astype(np.int16)-p)
+		ind=np.argmin(pa,axis=1)
+		c=np.asarray([ a[0,ind[0]],a[1,ind[1]],a[2,ind[2]] ])
+		a=np.stack([A,B,C],axis=1)
+		return c
+			
 	def paeth3(self,A,B,C,D):
 		c=((A.astype(np.int16)+B-C)).reshape((3))
 		c=np.maximum(0,np.minimum(255,c)).astype(np.uint8)
-	
-		#print(a)
-		#print(p)
 		return c
-	
-
-
-	def paeth4(self,A,B,C,D):
-		dy=C.astype(np.int16)-A.astype(np.int16)
-		dx=B.astype(np.int16)-C.astype(np.int16)
-		p=(A.astype(np.int16)+B-C).reshape((1,3))
-		p2=(B.astype(np.int16)+(A.astype(np.int16)-C)*(D.astype(np.int16)-B)//(B.astype(np.int16)-C)).reshape((1,3))
-		#p2=(A.astype(np.int16)+D - B).reshape((3,1))
-		a=np.stack([A,B,C,D],axis=0)
-		#a2=np.stack([A,B,C,D],axis=1)
-		b=(((A-C)*dx)>0).reshape((1,3))
-		p=p*(1-b)+b*p2
-		#print(a)
-		pa=abs(a.astype(np.int16)-p)
-		#pa2=abs(a2.astype(np.int16)-p2)
-		#p=np.concatenate((pa,pa2),axis=1)
-		#a=np.concatenate((a,a2),axis=1)
 		
-		ind=np.argmin(pa,axis=0)
-		c=np.asarray([ a[ind[0],0],a[ind[1],1],a[ind[2],2] ])
+	def paeth3b(self,A,B,C,D):
+		c=((A.astype(np.int16)+D-B)).reshape((3))
+		c=np.maximum(0,np.minimum(255,c)).astype(np.uint8)
 		return c
-	
-	def paeth5(self,A,B,C,D):
-		p=(A.astype(np.int16)+B-C).reshape((3,1))
-		#p2=(B.astype(np.int16)+(A.astype(np.int16)-C)*(D.astype(np.int16)-B)//(B.astype(np.int16)-C)).reshape((3,1))
-		#p2=(A.astype(np.int16)+D - B).reshape((3,1))
-		a=np.stack([A,B,C,D],axis=1)
-		#a2=np.stack([A,B,C,D],axis=1)
-		b=(((A-C)*(B-C))>=0).reshape((1,3))
-		#p=p*(1-b)+b*p2
-		#print(a)
-		pa=abs(a.astype(np.int16)-p)
-		
-		#pa2=abs(a2.astype(np.int16)-p2)
-		#p=np.concatenate((pa,pa2),axis=1)
-		#a=np.concatenate((a,a2),axis=1)
-		
-		ind=np.argmin(pa,axis=1)
-		c=np.asarray([ a[0,ind[0]],a[1,ind[1]],a[2,ind[2]] ]).reshape((1,3))
-		#print(D.reshape((1,3)))
-		#print(b)
-		#print(c)
-		c=c*(1-b)+D.reshape((1,3))*b
-		#print(c)
-		return c
-	
 
-
-	
-	def paeth8(self,A1,A2,A3,A4,A5,B1,B2,B3,B4,B5,C1,C2,flag=False):
+	def paeth3c(self,A,B,C,D):
+		return A
 		
-		dx1=abs(A1.astype(np.int16)-B2)
-		dx2=abs(A3.astype(np.int16)-B3)
-		dx3=abs(A5.astype(np.int16)-B4)
-		dx4=abs(C1.astype(np.int16)-C2)
-		
-		
-	
+	def paeth3d(self,A,B,C,D):
+		return B
 
-	
-		a=np.stack([C2,B3,B2,B4],axis=0)#
-		#print(a)
-		pa=np.stack([dx4,dx2,dx1,dx3],axis=0)#,dC,dD
-
-		ind=np.argmin(pa,axis=0)
-		c=np.asarray([ a[ind[0],0],a[ind[1],1],a[ind[2],2] ])
-		
-
-	
-		return c
 	
 	#first prefiltering step
 	#predicts value of next pixel and stores the difference in output image							
@@ -231,8 +184,9 @@ class compress():
 		
 		w=self.w
 		h=self.h
-	
-		
+		m=4
+		func=[self.paeth2c,self.paeth2b,self.paeth3c,self.paeth3d]
+		#func=[self.paeth2c,self.paeth2b,self.paeth3c,self.paeth3d]
 		image2=np.zeros((h,w,3),np.int16)
 		#print(image[:,0])
 		image2[0,0,:]=image[0,0,:]
@@ -241,27 +195,45 @@ class compress():
 			
 		for j in range(1,h):
 			image2[j,0,:]=image[j,0,:].astype(np.int16)-image[j-1,0,:]	
-		
+		choicej=[0]*4
 		for j in range(1,h):	
-			for i in range(1,w):
-				#
-				if  i<w-1 and j>1:
-					#D=self.paeth6(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:],image[j-1,i+1,:],image[j-2,i+1,:],image[j,i,:])
-					D=self.paeth2(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:],image[j-1,i+1,:])
-				elif  i<w-2:
-					#D=self.paeth8(image[j-2,i-2,:],image[j-2,i-1,:],image[j-2,i,:],image[j-2,i+1,:],image[j-2,i+2,:],   image[j-1,i-2,:],image[j-1,i-1,:],image[j-1,i,:],image[j-1,i+1,:],image[j-1,i+2,:], image[j,i-2,:],image[j,i-1,:])
-					D=self.paeth2(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:],image[j-1,i+1,:])
-				elif i<w-1:
-					#print("dfgh")
-					D=self.paeth2(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:],image[j-1,i+1,:])
-				else:
-					D=self.paeth(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:])
-				
+			errsum=[0]*m
+			
+			for i in range(1,w-1):
+				err=[99999]*4
+				for k in range(m):
+			
+					D=func[k](image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:],image[j-1,i+1,:])
+					#print(image[j,i,:])
+					#print(D)
+					image2[j,i,:]=image[j,i,:].astype(np.int16)-D
+					#print(self.t1a(image2[j,i,:]))
+					#print(self.transposebits2(self.t1a(image2[j,i,:].astype(np.uint8)),8))
+					err[k]=np.sum(self.transposebits2(self.t1a(image2[j,i,:].astype(np.uint8)),8)==0)
+					errsum[k]=errsum[k]+err[k]
+				#print(err)
+				ch=np.argmax(err)
+				#print(ch)
+			#print(errsum)
+			choice=np.argmax(errsum).item()
+			#print(choice)
+			choicej[choice]=choicej[choice]+1
+			#21441
+			#21023
+			#87726
+			#choice=0#np.argmin(errsum)
+			self.bitstream.write(choice,2)#
+			for i in range(1,w-1):
+				D=func[choice](image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:],image[j-1,i+1,:])
+				image2[j,i,:]=image[j,i,:].astype(np.int16)-D
+			i=w-1	
+			D=self.paeth(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:])
+			image2[j,i,:]=image[j,i,:].astype(np.int16)-D
 				#print([j,i,image[j,i,:],D,image2[j,i,:]])
 
-				image2[j,i,:]=image[j,i,:].astype(np.int16)-D
+				
 					
-	
+		print(choicej)
 		#print(image2[:,0])
 		
 		return image2
@@ -270,29 +242,25 @@ class compress():
 
 	#first prefiltering step
 	#predicts value of next pixel and adds the value of the difference
-	def decompress2(self,image):
+	def decompress2(self,image,choice):
 		w=self.w
 		h=self.h
-	
+		func=[self.paeth2c,self.paeth2b,self.paeth3c,self.paeth3d]
+		#func=[self.paeth3,self.paeth2b,self.paeth2c,self.paeth2d]
 		for i in range(1,w):
 			image[0,i,:]=image[0,i,:]+image[0,i-1,:]
 		for j in range(1,h):
 			image[j,0,:]=image[j,0,:]+image[j-1,0,:]
-		for j in range(1,h):
-			for i in range(1,w):
-				if  i<w-1 and j>1:
-					#D=self.paeth6(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:],image[j-1,i+1,:],image[j-2,i+1,:],None)
-					D=self.paeth2(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:],image[j-1,i+1,:])
-				elif i<w-2 :
-					#D=self.paeth8(image[j-2,i-2,:],image[j-2,i-1,:],image[j-2,i,:],image[j-2,i+1,:],image[j-2,i+2,:],   image[j-1,i-2,:],image[j-1,i-1,:],image[j-1,i,:],image[j-1,i+1,:],image[j-1,i+2,:], image[j,i-2,:],image[j,i-1,:])
-					D=self.paeth2(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:],image[j-1,i+1,:])
-				elif i<w-1:
-					D=self.paeth2(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:],image[j-1,i+1,:])
-				else:
-					D=self.paeth(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:])
-				#print([j,i,image[j,i,:],D])
-				image[j,i,:]=image[j,i,:]+D
 			
+		for j in range(1,h):
+			choicej=choice[j]
+			for i in range(1,w-1):
+				D=func[choicej](image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:],image[j-1,i+1,:])
+				image[j,i,:]=image[j,i,:]+D
+			i=w-1	
+			D=self.paeth(image[j,i-1,:], image[j-1,i,:],image[j-1,i-1,:])
+			image[j,i,:]=image[j,i,:]+D
+		
 				
 		#print(image[:,0])
 	
@@ -327,25 +295,35 @@ class compress():
 	#nbit= number of bits each symbol is stored as.
 	#nbit 2 =  number of bits each symbol is stored as in output array2
 	#ruins data in origional "array"
-	def	transposebits2(self,array,nbit): 
-		nbit2=array.shape[1]
-		length=array.shape[0]
+	def	transposebits2(self,array,nbit): #ruins data in origional "array"
+	
+		nbit2=array.shape[-1]
+		shape=list(array.shape)
+		#print(shape)
+		shape1=shape.copy()
+		shape1.insert(-1,nbit)
+		#print(shape1)
+		shape2=shape.copy()
+		shape2[-1]=nbit
+		#print(shape2)
+		#length=array.shape[0]
 		dtype=np.uint8
-		w=np.zeros((length,nbit,nbit2),dtype=dtype)
-		arrays2=np.zeros((length,nbit),dtype=dtype)
+		w=np.zeros(shape1,dtype=dtype)
+		arrays2=np.zeros(shape2,dtype=dtype)
 
 		for i in range(nbit):
-			w[:,nbit-1-i,:]=array%2
+			w[...,nbit-1-i,:]=array%2
 			array=array//2
-		a=np.zeros((1,nbit2,1))
-		a[0,nbit2-1,0]=1
+		a=np.zeros((nbit2,1))
+		a[nbit2-1,0]=1
 		for i in range(nbit2-1):
-			a[0,nbit2-2-i]=a[0,nbit2-1-i,0]*2
-
-		arrays2=np.matmul(w[:,:,:],a)[:,:,0]
+			a[nbit2-2-i]=a[nbit2-1-i,0]*2
+		#print(w.shape)
+		#print(a.shape)
+		arrays2=np.matmul(w[...],a)
+		arrays2=arrays2[...,0] #[h,w,8,1]-> [h,w,8]
 		arrays2=arrays2.astype(dtype)
 		return arrays2	
-						
 
 				
 						
@@ -428,16 +406,25 @@ class compress():
 		w=self.w
 		h=self.h
 		#print(length)
-		n=2 # split 8 significant bits into n groups
+		n=4 # split 8 significant bits into n groups
 		
 	
 		bits2=6
 		size1=(1<<bits2)
 		arrays=[None]*n
 		lengths=[None]*n
+		arrays[0]=array[0:w*h*3]
+		arrays[1]=array[w*h*3:w*h*5]
+		arrays[2]=array[w*h*5:w*h*7]
+		arrays[3]=array[w*h*7:w*h*8]
+		
+		lengths[0]=w*h*3
+		lengths[1]=w*h*2
+		lengths[2]=w*h*2
+		lengths[3]=w*h*1
 		for i in range(n):
-			arrays[i]=array[w*h*(i)*8//n:w*h*(i+1)*8//n]
-			lengths[i]=w*h*8//n
+		#	arrays[i]=array[w*h*(i)*8//n:w*h*(i+1)*8//n]
+		#	lengths[i]=w*h*8//n
 			arrays[i],lengths[i]=self.t3_9( arrays[i],lengths[i],3,bits2)
 
 		huf=[None]*n
@@ -454,19 +441,24 @@ class compress():
 	def dehuffman(self):
 		#print("huffman2")
 
-		n=2
+		n=4
 		dtype=np.uint8
 		bits1=6
 		w=self.w
 		h=self.h
 		huf=[None]*n
 		arrays=[None]*n
-		length=[None]*n
+		lengths=[None]*n
 	
+		lengths[0]=w*h*3
+		lengths[1]=w*h*2
+		lengths[2]=w*h*2
+		lengths[3]=w*h*1
 		for i in range(n):#n
 			huf[i]=deflate(bits1)
-			arrays[i],length[i]=huf[i].decode(self.bitstream)
-			arrays[i]=self.t9_3( arrays[i] , w*h*8//n,bits1,3)
+		#	lengths[i]=w*h*8//n
+			arrays[i],_=huf[i].decode(self.bitstream)#length[i]
+			arrays[i]=self.t9_3( arrays[i] , lengths[i],bits1,3)
 			
 		array=np.concatenate(arrays,axis=0)
 		length=w*h
@@ -492,7 +484,7 @@ def main():
 	b=compress(None,"/home/andrew/Desktop/asadf/out/asdf.awy") # to decompress
 	
 	image,lengths=a.compress()
-	image2=b.decompress(None,None)
+	image2=b.decompress(image,None)
 	
 	
 	#print(data)
