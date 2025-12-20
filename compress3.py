@@ -8,6 +8,7 @@ from huffman import huffman
 #from lz0 import lz0
 import math
 from deflate2 import deflate2 as deflate
+import transpose
 
 class compress():
 	def __init__(self,image,filename):
@@ -267,82 +268,7 @@ class compress():
 		
 		return image
 
-	
-	def transposebits(self,v,nbit):
-		#print("change")
-		#vshaphe=[3,4]
-		#print(v)
-		nbit2=v.shape[0]
-		w2=np.zeros(nbit,dtype=np.uint64)#8 bits plus
-		#n=v.shape[1]
-		w=np.zeros((nbit,nbit2),dtype=np.uint64)
-		#v2=v[:,0:3].reshape((9))
-		v2=v
-		#v3=v[:,3]
-		for i in range(nbit):
-			j=nbit-i-1
-			w[j,:]=v2%2
-			v2=v2//2
-		#print(w)
-		for i in range(nbit):
-			for j in range(nbit2):
-				w2[i]=w2[i]*2+w[i,j]
 
-		#print(w2)
-		return w2
-
-
-	#nbit= number of bits each symbol is stored as.
-	#nbit 2 =  number of bits each symbol is stored as in output array2
-	#ruins data in origional "array"
-	def	transposebits2(self,array,nbit): #ruins data in origional "array"
-	
-		nbit2=array.shape[-1]
-		shape=list(array.shape)
-		#print(shape)
-		shape1=shape.copy()
-		shape1.insert(-1,nbit)
-		#print(shape1)
-		shape2=shape.copy()
-		shape2[-1]=nbit
-		#print(shape2)
-		#length=array.shape[0]
-		dtype=np.uint8
-		w=np.zeros(shape1,dtype=dtype)
-		arrays2=np.zeros(shape2,dtype=dtype)
-
-		for i in range(nbit):
-			w[...,nbit-1-i,:]=array%2
-			array=array//2
-		a=np.zeros((nbit2,1))
-		a[nbit2-1,0]=1
-		for i in range(nbit2-1):
-			a[nbit2-2-i]=a[nbit2-1-i,0]*2
-		#print(w.shape)
-		#print(a.shape)
-		arrays2=np.matmul(w[...],a)
-		arrays2=arrays2[...,0] #[h,w,8,1]-> [h,w,8]
-		arrays2=arrays2.astype(dtype)
-		return arrays2	
-
-				
-						
-	def t1a(self,v2d): #turn small negative numbers(large numbers) into small positive numbers while keeping small positive numbers small
-		c=(v2d>=128)
-		c1=255-v2d
-		c1=c1*2+1
-		c2=v2d*2
-		v2d=(c*c1)+(1-c)*c2
-		return v2d		
-		
-	def t1b(self,v2d): #reverse of t1a
-		c=v2d%2
-		c1=(v2d-1)//2
-		c1=255-c1
-		c2=v2d//2
-		v2d=(c*c1)+(1-c)*c2
-		return v2d
-		
 	def transpose(self,image): #turn 3 8 bit numbers into 8 3 bit numbers
 		#print("transpose")
 		w=self.w
@@ -368,38 +294,6 @@ class compress():
 			
 	
 
-
-				
-	def t3_9(self,array,length,n1,n2): #group symbols of n1 bits into symbols of n2 bits
-		n=n2//n1
-		
-		length2=(length-1)//n+1
-		a=np.zeros((length2*n),np.uint16)
-		a[:length]=array
-		array=a.reshape((length2,n))#[:,3]
-		
-		
-		
-		a= (1<<n1)
-		arr=array[:,0].astype(np.uint16)
-		for i in range(1,n):
-			arr=arr*a+array[:,i] 
-		array=arr #array[:,0].astype(np.uint16)*64+ array[:,1]*8+ array[:,2] #[:]
-		return array,length2
-
-
-	def t9_3(self,array,length,n1,n2): #split symbols of n1 bits into symbols of n2 bits
-		n=n1//n2
-		v=[None]*n
-		a=(1<<n2)
-		for i in range(n):
-			v[n-i-1]=array%a
-			array=array//a
-		array=np.reshape(np.stack(v,axis=1),(-1))
-		array=array[:length]
-		return array
-
-	
 	
 	def huffman(self,array,length):
 		#print("huffman")
