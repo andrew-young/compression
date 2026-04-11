@@ -2,7 +2,7 @@
 import numpy as np
 from bitstream import bitstream
 from sparsehuffman import sparsehuffman 
-
+from PIL import Image
 import losslessfunctions as lf
 
 test1=None
@@ -20,8 +20,8 @@ class compresslossless():
 		self.size2=[[9,9,9],[3,3,3]]
 		#self.bits=[[9,6,6],[3,3,3]]
 		self.bits=[[8,8,8],[2,1,1]]
-		self.drthreshold=31
-		
+	
+		self.groupsize=8
 		
 	def compress(self):
 		image=self.image
@@ -109,76 +109,75 @@ class compresslossless():
 		dif=np.zeros((h,w,3),np.uint8)
 
 		#top left pixel
-		dif[0,0,:]=image[0,0,:]
+		dif[0,0,:]=lf.t1a(image[0,0,:])
+		
+		
+		p=np.zeros((h,w,3))
+		p[0,1:,:]=image[0,:-1,:]
+		p[1:,0,:]=image[:-1,0,:]
 		
 		#top pixels
-		p=image[0,:-1,:]
-		dif[0,1:,:]=lf.encodepixeldif(p,image[0,1:,:])
+		dif[0,1:,:]=lf.t1a(lf.encodepixeldif(p[0,1:,:],image[0,1:,:]))
 
-		#left pixels		
-		p=image[:-1,0,:]	
-		dif[1:,0,:]=lf.encodepixeldif(p,image[1:,0,:])
-	
+		#left pixels			
+		dif[1:,0,:]=lf.t1a(lf.encodepixeldif(p[1:,0,:],image[1:,0,:]))
+		
+		p=np.zeros((m,h,w,3))
 			
-		choicej=[0]*3
-		choice3=np.zeros(h-1,np.uint8)
+
 		errsum2=0
+		w2=((w-1-1)//self.groupsize+1)*self.groupsize#round up
+		#print(w,w2)
+		dif2=np.zeros((m,h-1,w2,3))
+		
+		err=np.zeros((m,h-1,w2))
+		
+		A=image[1:,0:-1,:]
+		B=image[:-1,1:,:]
+		C=image[:-1,0:-1,:]
+		D=image[:-1,2:,:]
 
-		for j in range(1,h):	
-			errsum=[0]*m
-			pj=np.zeros((m,w,3))
+		for k in range(m):
 			
-			for i in range(1,w):
-				err=[99999]*m
-				A=image[j,i-1,:]
-				B=image[j-1,i,:]
-				C=image[j-1,i-1,:]
-				for k in range(m):
-					if i==w-1:
-						pj[k,i]=func2[k](A, B,C)
-					else:
-						D=image[j-1,i+1,:]
-						pj[k,i,:]=func[k](A, B,C,D)
-			
-			for k in range(m):
-				dif[j,1:,:]=lf.t1a(lf.encodepixeldif(pj[k,1:],image[j,1:,:]))
-				errsum[k]=np.sum(lf.transposebits2(dif[j,:,:].astype(np.uint8),8)==0)
+			p[k,1:,1:-1,:]=func[k](A[:,:-1,:], B[:,:-1,:],C[:,:-1,:],D)
+			p[k,1:,-1,:]=func2[k](A[:,-1,:], B[:,-1,:],C[:,-1,:])
+			#print(p[j2-1,i2-1,:])
+			dif2[k,:,:w-1,:]=lf.t1a(lf.encodepixeldif(p[k,1:,1:,:],image[1:,1:,:]))
+		#err[:,:,:]=np.sum(lf.transposebits2(dif2[:,:,:,:].astype(np.uint8),8)!=0,axis=-1)
+		
+		#err[:,:,:]=np.sum(dif2[:,:,:,:].astype(np.uint8),axis=-1)
+		#err[:,:,:]=np.sum(dif2[:,:,:,:].astype(np.uint8)!=0,axis=-1)
+		err[:,:,:]=np.sum((dif2[:,:,:,:].astype(np.uint8)%4)!=0,axis=-1)+np.sum((dif2[:,:,:,:].astype(np.uint8)//4)!=0,axis=-1)
+		#err[:,:,:]=np.sum((dif2[:,:,:,:].astype(np.uint8)%4),axis=-1)+np.sum((dif2[:,:,:,:].astype(np.uint8)//4),axis=-1)
+		#print (err)
+		err[0,:,:]=np.maximum(0,err[0,:,:]+0)
+		
+		errsum=np.sum(err.reshape((m,-1,self.groupsize)),axis=-1)
+		#choice=np.argmax(errsum,axis=0).reshape((1,-1,1,1))
+		choice=np.argmin(errsum,axis=0).reshape((1,-1,1,1))
+		dif2=dif2.reshape((m,-1,self.groupsize,3))
+		dif2=np.take_along_axis(dif2,choice,axis=0)[0,:,:,:]
+		
+		dif2=dif2.reshape((h-1,w2,3))
+		dif[1:,1:,:]=dif2[:,:w-1,:]
+		self.color=np.zeros((3,2))
 
-			
-			choice=np.argmax(errsum).item()
-			
-			
-			#choicej[choice]=choicej[choice]+1
-			
-			choice3[j-1]=choice
-			
-			A=image[j,0:-2,:]
-			B=image[j-1,1:-1,:]
-			C=image[j-1,0:-2,:]
-			D=image[j-1,2:,:]
-			p=func[choice](A, B,C,D)
-			dif[j,1:-1,:]=lf.encodepixeldif(p,image[j,1:-1,:])
 
-			#right pixels
-			i=w-1	
-			A=image[j,i-1,:]
-			B=image[j-1,i,:]
-			C=image[j-1,i-1,:]
-			p=func2[choice](A, B,C)
-			dif[j,i,:]=lf.encodepixeldif(p,image[j,i,:])
-
-		#print(choicej)
+					
+		choice=choice.reshape((-1))
+		
 
 		huf=sparsehuffman(2)
-		huf.encode(self.bitstream,choice3)
-		dif=lf.t1a(dif.reshape((-1,3))[:,:])
-			
+		huf.encode(self.bitstream,choice)
+
+		
 		#im=Image.fromarray(dif)
 		#im.save("/home/andrew/Desktop/asadf/out/d1234.png")
-		
+		dif=dif.reshape((-1,3))
 		return dif
 
-				
+
+					
 	def decodedif(self,dif,choice):
 		w=self.w
 		h=self.h
@@ -188,9 +187,9 @@ class compresslossless():
 		func2=[lf.paeth2,lf.paeth2left,lf.paeth2up]
 		image=np.zeros((h,w,3),dtype=np.uint8)
 		
-		
-		dif=lf.t1b(dif.reshape((h,w,3)))
-		
+		dif=dif.reshape((h,w,3))
+		dif=lf.t1b(dif)
+
 
 		image[0,0,:]=dif[0,0,:]
 		
@@ -203,25 +202,36 @@ class compresslossless():
 			p=image[j-1,0,:]
 			image[j,0,:]=lf.decodepixeldif(p,dif[j,0,:])
 
-		
+		j2=0
 		for j in range(1,h):
-			choicej=choice[j-1]
+			choicej=choice[j2]
+			j2=j2+1
+			i2=1
 			for i in range(1,w-1):
+				if i-i2==self.groupsize:
+					choicej=choice[j2]
+					j2=j2+1
+					i2=i
 				A=image[j,i-1,:]
 				B=image[j-1,i,:]
 				C=image[j-1,i-1,:]
 				D=image[j-1,i+1,:]
 				p=func[choicej](A, B,C,D)
+				
 				image[j,i,:]=lf.decodepixeldif(p,dif[j,i,:])
+	
 				
 			i=w-1
+			if i-i2==self.groupsize:
+				choicej=choice[j2]
+				j2=j2+1
 			A=image[j,i-1,:]
 			B=image[j-1,i,:]
 			C=image[j-1,i-1,:]
 			p=func2[choicej](A, B,C)
 
 			image[j,i,:]=lf.decodepixeldif(p,dif[j,i,:])
-		
+		print(len(choice),j2)
 
 		return image
 
@@ -248,7 +258,7 @@ class compresslossless():
 		f=np.zeros((2,8//size1))
 		for k in range(8):
 			section0=array[:,1:3,k*size1:(k+1)*size1]
-			section1=array[:,self.midcolor,k*size1:(k+1)*size1]
+			section1=array[:,0,k*size1:(k+1)*size1]
 			if section0.size!=0:
 				f[0,k]=np.sum(section0==0)/section0.size
 			if section1.size!=0:
@@ -256,9 +266,10 @@ class compresslossless():
 		
 		
 		f=f.reshape((2,size2,2)).transpose((1,0,2))
+		#print(f)
 		s1=np.sum(f,axis=(1))
 		s2=np.sum(f,axis=(2))
-		
+		#print(size2)
 		mode=[0]*(size2)
 		d1=[0]*(size2)
 		d2=[0]*(size2)
@@ -271,7 +282,9 @@ class compresslossless():
 				mode[i]=0
 			else:
 				mode[i]=1
-				
+		#print(mode)	
+		#print(s1,s2)
+		#print(d1,d2)			
 		for i in range(size2):
 			if mode[i]==0:
 				arrays2[0+2*i]=array[:,:,2*i*size1:(2*i+1)*size1].reshape((-1))
@@ -280,7 +293,7 @@ class compresslossless():
 				
 			else:
 				arrays2[0+2*i]=array[:,1:3,2*i*size1:2*(i+1)*size1].reshape((-1))
-				arrays2[1+2*i]=array[:,self.midcolor,2*i*size1:2*(i+1)*size1].reshape((-1))
+				arrays2[1+2*i]=array[:,0,2*i*size1:2*(i+1)*size1].reshape((-1))
 				bits[i]=8
 			self.bitstream.write(bits=mode[i],n=1)
 	
@@ -354,7 +367,7 @@ class compresslossless():
 				arrays[0+2*i]=arrays[0+2*i].reshape((-1,2,2*size1))
 				arrays[1+2*i]=arrays[1+2*i].reshape((-1,2*size1))
 				array[:,1:3,2*i*size1:2*(i+1)*size1]=arrays[0+2*i]
-				array[:,self.midcolor,2*i*size1:2*(i+1)*size1]=arrays[1+2*i]
+				array[:,0,2*i*size1:2*(i+1)*size1]=arrays[1+2*i]
 
 		
 		array=np.packbits(array,axis=-1)[...,0]
