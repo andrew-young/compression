@@ -43,11 +43,12 @@ class sparsehuffman ():
 		#self.maxz=len(self.lengths[0])
 		#self.nbits=(self.maxv+self.maxz).item().bit_length()
 		self.total=total
+		#self.printstats()
 		return
 
 	def printstats(self):
 		total=self.total
-		print(total)
+		print("total zeros",total)
 		print(total/(total+sum(self.freq)))
 		print(sum(self.lengths[0].values()))
 		print(sum(self.freq))
@@ -115,6 +116,7 @@ class sparsehuffman ():
 		if n is None:
 			n=array.shape[0]
 		f=np.sum(array==0)/array.shape[0]
+		print(f)
 		if f<0.54:
 			bitstream.write(1,1)
 			self.huff=huffman()
@@ -147,7 +149,7 @@ class sparsehuffman ():
 		
 		self.secondpass(bitstream)
 		self.endstream=bitstream.n
-		
+		self.printencodesize()
 	
 	def printencodesize(self):
 		print("encode size: "+str(self.endstream-self.startstream))
