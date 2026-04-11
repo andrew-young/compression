@@ -32,30 +32,20 @@ class huffnode():
 			return self.right
 	
 	def remove(self):
-		#print(self.value)
-		#print(self.parent.parent)
-		#print(self.parent.left.value)
-		#print(self.value)
-		#print(self)
-		#print(self.parent.left)
+
 		if self.parent.parent is not None:
 			if self.parent.left is self:
 				if self.parent.parent.left==self.parent:
 					self.parent.parent.left=self.parent.right
-					#print("a")
 				else:
-					#print("b")
 					self.parent.parent.right=self.parent.right
 				self.parent.right.parent=self.parent.parent	
 			else: #self.parent.right==self:
 				if self.parent.parent.left==self.parent:
-					#print("c")
 					self.parent.parent.left=self.parent.left
 				else:
-					#print("d")
 					self.parent.parent.right=self.parent.left
 				self.parent.left.parent=self.parent.parent	
-				#self.parent.parent=self.parent.left
 		
 		if False:
 			if self.parent.left==self:
@@ -98,7 +88,7 @@ class huffnode():
 			self.right.print()
 			
 class huffman():
-	def __init__(self,nbits=None,freq=None):
+	def __init__(self,freq=None):
 	
 		
 		#
@@ -107,50 +97,91 @@ class huffman():
 		self.codelength={}
 		self.root=None
 		self.n=0
-		self.nbits=nbits
-		#print(nbits)
-		if nbits is None:
-			return
+		self.nbits=None
+
+
 		#self.size=1<<nbits
 		
 		if freq is None  or len(freq)==0:
 			return
-			#freq=self.generate()
+
 		self.freq=freq
 			
 
 
 		
 
-		if freq is not None:
-			#print(type(freq))
-			if isinstance(freq,np.ndarray):
-				freq=freq.tolist()
-			#print(type(freq))	
-			if isinstance(freq,list):
-				freq=dict(zip(list(range(len(freq))),freq))#convert list to dic
-			#print(type(freq))	
-			
-			self.nbits=(max(freq.keys())).bit_length()
-			#print(max(freq.keys()))
-			#print(freq)
-			self.fromfreq(freq)
+
+		self.fromfreq(freq)
 			
 
 	
+	def estimatesize(self):
+		total=0
+		for symbol,length in self.codelength:
+			symbolfreq=self.freq[key]
+			total=total+length*symbolfreq
+		return total
+		
+	def getfreq(self):
+		n=self.n
+
+		input=self.array
+		
+		self.maxv=np.max(self.array)
+		self.nbits=self.maxv.item().bit_length()
+		self.freq=[0]*(self.maxv.astype(np.uint16)+1)
+		i=0
+		#print(self.maxv+1)
+		while i < n:
+			symbol=self.array[i]
+			#print(symbol)
+			self.freq[symbol]=self.freq[symbol]+1
+			i=i+1
+
+
+		
+		#self.printstats()
+		return
+	def printstats(self):
+		print(sum(self.freq))
+		print(self.freq)
+		
+	def encode(self,bitstream,array,n=None):
+		self.array=array
+		if n is None:
+			self.n=array.shape[0]
+		else:
+			self.n=n
+		self.getfreq()
+		self.fromfreq(self.freq)
+		self.startstream=bitstream.n
+		
+		self.writeall(bitstream,array,self.n)
+		self.endstream=bitstream.n
+		self.printencodesize()
+	
+	def printencodesize(self):
+		print("tree size"+str(self.endtree-self.starttree))
+		print("encode size: "+str(self.endstream-self.startstream))
+		
 	def fromfreq(self,freq):
+		if freq is not None:
+			if isinstance(freq,np.ndarray):
+				freq=freq.tolist()
+
+			if isinstance(freq,list):
+				freq=dict(zip(list(range(len(freq))),freq))#convert list to dic
+
+			self.nbits=(max(freq.keys())).bit_length()
+
+			
 		hlist=[]
 		self.size=len(freq)
-
-		#for i2 in range(10):# for ints larger than 64 bits
-		#	self.codetable[i2]=np.zeros(self.size,dtype=np.uint64)
-		#self.codelength=np.zeros(self.size,dtype=np.uint64)
+		self.n=0
 		for length,fre in freq.items():
 			if fre>0:
-				#print([k2,freq[k2]])
 				self.n=self.n+fre
-				#total=total+self.freq[i][j,k,k2]
-				#print([length,fre])
 				hlist.append(huffnode(value=length,freq=fre))
 
 		if self.n==0:
@@ -166,22 +197,20 @@ class huffman():
 			del hlist[k3-1]
 			hlist.append(node)
 		self.root=hlist[0]
-
 			
 		self.hufftree(self.root,0,0)
 		
 	def frombitstream(self,bitstream):
-		#print("from bits")
 		self.readtree(bitstream)
 	
 	def fromtree(self,root):
-		#print("from tree")
 		self.root=root
 		self.hufftree(root,0,0)
 		
 	def readtree(self,bitstream):
 		self.root=huffnode()
 		stack=[self.root]
+		self.nbits=bitstream.read(8)+1
 		while len(stack)>0:
 			node=stack[len(stack)-1]
 			
@@ -191,9 +220,7 @@ class huffman():
 		
 			else:
 				bit=bitstream.read(1)
-				#print(bit)
 				if bit==0:
-					#print([0,"rt"])
 					rightnode=huffnode()
 					stack.append(rightnode)
 					leftnode=huffnode()
@@ -202,7 +229,6 @@ class huffman():
 					node.right=rightnode
 				elif bit==1:
 					node.value=bitstream.read(self.nbits)
-					#print([1,node.value,"rt",self.nbits])
 					del stack[len(stack)-1]
 					
 
@@ -222,7 +248,6 @@ class huffman():
 			node=node.read(bit)
 			
 		value=node.value
-		#print([value,v,i])
 		return value,v,i
 			
 	
@@ -237,46 +262,35 @@ class huffman():
 			code=0
 		
 		if node.left is  None and node.right is  None:
-			#for k2 in range(len(codelist)):
-			#	self.codetable[k2][node.value]=codelist[k2]
-			#print(word)
-			#print(self.codetable)
-			#print([node.value])
-			#print(code)
 			self.codetable[node.value]=code
 			self.codelength[node.value]=n
-			#print([node.value,code,n])
 		else:
 
 			self.hufftree(node.left,2*code,n+1,codelist)
 			self.hufftree(node.right,2*code+1,n+1,codelist)
 			
 	def writetree(self,bitstream):
-		#print("write tree")
-		a1=bitstream.n
+		self.starttree=bitstream.n
+		bitstream.write(self.nbits-1,8)
 		self.writetree1(bitstream,self.root)
-		a2=bitstream.n
-		#print(a2-a1)
+		self.endtree=bitstream.n
+		
 		
 	def writetree1(self,bitstream,node,i=0):
 	
 		if node.left is  None and node.right is  None:
 			bitstream.write(1,1)
-			#print([1,node.value,"wt",self.nbits])
-		
+
 			bitstream.write(node.value,self.nbits)
 		else:
 			
 			bitstream.write(0,1)
-			#print(0)
 			self.writetree1(bitstream,node.left,i+1)
 			self.writetree1(bitstream,node.right,i+1)
 		
 	def write(self,bitstream,symbol):
 		v=symbol
-		#print(v)
 		le=self.codelength[v]
-		#print(le)
 		for word in range((le-1)//62+1):
 			if word<(le)//62:
 				
@@ -286,28 +300,37 @@ class huffman():
 			else:
 				
 				code=self.codetable[v]
-				#print([v,code,"y",le])
 				bitstream.write(code,le%62)
 						
 	def writeall(self,bitstream,array,n):
-		print(["writeall",n,self.nbits])
 		bitstream.write(n,32)
 		if self.nbits>256:
 			raise "nbits > 256"
 		bitstream.write(self.nbits,8)
-		#print([n,self.nbits])
 		if n>0:
 			self.writetree(bitstream)
 			for i in range(n):
 				v=array[i]
 				self.write(bitstream,v)
 
-	def readall(self,bitstream,dtype):
+	def decode(self,bitstream):
+		 return self.readall(bitstream)
+	
+	def readall(self,bitstream):
 		
 		n=bitstream.read(32)
 		self.nbits=bitstream.read(8)
-		#print([n,self.nbits])
-		array=np.zeros((n),dtype)
+		if self.nbits>32:
+			self.dtype=np.uint64
+		elif self.nbits>16:
+			self.dtype=np.uint32
+		elif self.nbits>8:
+			self.dtype=np.uint16
+		else:
+			self.dtype=np.uint8
+			
+
+		array=np.zeros((n),self.dtype)
 		if n>0:
 			self.frombitstream(bitstream)
 			for i in range(n):
